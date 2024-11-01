@@ -369,6 +369,11 @@ def student_dashboard():
 
     # Fetch the current active round
     active_round = Round.query.filter_by(is_active=True).first()
+    if active_round:
+        print(f"Active Round ID: {active_round.round_id}")
+    else:
+        print("No active round found.")
+
 
     # Fetch all college-major pairs
     college_major_pairs = db.session.query(
@@ -377,6 +382,8 @@ def student_dashboard():
     College.id.label('college_id'),
     College.name.label('college_name')
 ).join(College).all()
+    
+    print(college_major_pairs)
     
      # Fetch saved seat preferences for the student
     saved_preferences = SeatPreference.query.filter_by(student_id=current_user_id).all()
@@ -396,13 +403,15 @@ def student_dashboard():
                 student_id=current_user_id,
                 college_id=preference1.college_id,  # Ensure to get the college_id from the Major model
                 major_id=preference1.id,
-                preference_order=1
+                preference_order=1,
+                round_id=active_round.round_id 
             )
             new_preference2 = SeatPreference(
                 student_id=current_user_id,
                 college_id=preference2.college_id,  # Ensure to get the college_id from the Major model
                 major_id=preference2.id,
-                preference_order=2
+                preference_order=2,
+                round_id=active_round.round_id 
             )
 
             db.session.add(new_preference1)
@@ -412,7 +421,7 @@ def student_dashboard():
             flash('Preferences saved successfully!', 'success')
             return redirect(url_for('main.student_dashboard'))
 
-    return render_template('student_dashboard.html', student=student,college_major_pairs=college_major_pairs,saved_preferences=saved_preferences)
+    return render_template('student_dashboard.html', student=student,college_major_pairs=college_major_pairs,saved_preferences=saved_preferences,active_round=active_round)
 
 @main.route('/view_colleges', methods=['GET'])
 def view_colleges():
