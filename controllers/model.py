@@ -1,5 +1,5 @@
 from controllers.database import db
-from datetime import datetime
+from datetime import datetime, date
 
 # Base User model, which both Customer and ServiceProfessional will inherit
 class User(db.Model):
@@ -35,6 +35,7 @@ class Student(db.Model):
     eligibility_status = db.Column(db.Boolean, default=False)  # New field
     rank= db.Column(db.Integer,nullable=False)
     seat_preferences = db.relationship('SeatPreference', back_populates='student')  # Relationship with SeatPreference
+    round_furthering=db.Column(db.Boolean, default=True) # Will student participate in further rounds 
 
 #Major model 
 class Major(db.Model):
@@ -43,6 +44,7 @@ class Major(db.Model):
     college_id = db.Column(db.Integer, db.ForeignKey('colleges.id'), nullable=False)
     name = db.Column(db.String(50), nullable=False)
     seat_count = db.Column(db.Integer, nullable=False, default=0)
+    alloted_seat_count = db.Column(db.Integer, nullable=False, default=0)
 
     college = db.relationship('College', backref=db.backref('majors', cascade='all, delete-orphan'))
     def __repr__(self):
@@ -52,6 +54,9 @@ class Major(db.Model):
 class SeatPreference(db.Model):
     __tablename__ = 'seat_preferences'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+
+    round_id = db.Column(db.Integer, db.ForeignKey('round.round_id'), nullable=False)
+
     student_id = db.Column(db.Integer, db.ForeignKey('students.id'), nullable=False)
     college_id = db.Column(db.Integer, db.ForeignKey('colleges.id'), nullable=False)
     major_id = db.Column(db.Integer, db.ForeignKey('majors.id'), nullable=False)
@@ -61,8 +66,36 @@ class SeatPreference(db.Model):
     student = db.relationship('Student', back_populates='seat_preferences')
     college = db.relationship('College', backref=db.backref('seat_preferences', lazy=True))
     major = db.relationship('Major', backref=db.backref('seat_preferences', lazy=True))
+    round = db.relationship('Round', backref=db.backref('seat_preferences', lazy=True))
 
-    def __repr__(self):
-        return f"<SeatPreference(student_id={self.student_id}, college_id={self.college_id}, major_id={self.major_id}, preference_order={self.preference_order})>"
+
 
  
+
+class Round(db.Model):
+    _tablename_ = 'round'
+    
+    round_id = db.Column(db.Integer, primary_key=True)
+    start_date = db.Column(db.Date, nullable=False)
+    end_date = db.Column(db.Date, nullable=False)
+    is_active = db.Column(db.Boolean, nullable=False, default=False)
+
+    # Relationship to link Round with StudentAllotment
+    student_allotments = db.relationship('StudentAllotment', back_populates='round')
+
+
+
+class StudentAllotment(db.Model):
+    _tablename_ = 'student_allotment'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    student_id = db.Column(db.Integer, db.ForeignKey('students.id'), nullable=False)  # Foreign key to Student
+    pref_id = db.Column(db.Integer, db.ForeignKey('seat_preferences.id'), nullable=False)    # Foreign key to Preference
+    round_id = db.Column(db.Integer, db.ForeignKey('round.round_id'), nullable=False)       # Foreign key to Round
+    status = db.Column(db.String(10), nullable=False)   # "active" or "no"
+    choice = db.Column(db.String(100))
+
+    # Relationships
+    round = db.relationship('Round', back_populates='student_allotments')
+    student = db.relationship('Student', backref='student_allotments')
+    preference = db.relationship('SeatPreference', backref='student_allotments')

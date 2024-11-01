@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
-from controllers.model import db, Admin, Student, College, User, Major, SeatPreference
-from datetime import datetime
+from controllers.model import db, Admin, Student, College, User, Major, SeatPreference, Round, StudentAllotment
+from datetime import datetime,date
 from flask import jsonify, request
 
 main = Blueprint('main', __name__)
@@ -157,7 +157,96 @@ def admin_dashboard():
     current_user_id = session.get('user_id')
     admin = Admin.query.get(current_user_id)
   
-    return render_template('admin_dashboard.html',admin=admin)
+    # Query to get the current active round, if any
+    active_round = Round.query.filter_by(is_active=True).first()
+    latest_round = Round.query.order_by(Round.round_id.desc()).first()
+
+    return render_template('admin_dashboard.html',admin=admin,active_round=active_round,
+                           latest_round=latest_round)
+
+
+
+@main.route('/admin/add_round', methods=['POST'])
+def add_round():
+    start_date_str = request.form.get('start_date')
+    end_date_str = request.form.get('end_date')
+    
+    try:
+        # Convert string to date objects
+        start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+        end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+
+        # Ensure the start date is today
+        current_date = datetime.now().date()
+        
+        if start_date != current_date:
+            flash('Start date must be the current date.', 'danger')
+            return redirect(url_for('main.admin_dashboard'))
+
+        # Convert end date string to date
+        end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+
+
+            # Check if the new end date is before the start date
+        if end_date < current_date:
+                flash('End date cannot be before the start date.', 'danger')
+                return redirect(url_for('main.admin_dashboard'))
+
+
+        # Create a new round
+        new_round = Round(start_date=start_date, end_date=end_date, is_active=True)
+
+        # Add and commit the new round to the database
+        db.session.add(new_round)
+        db.session.commit()
+
+        flash('New round started successfully!', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error starting new round: {e}', 'danger')
+
+    return redirect(url_for('main.admin_dashboard'))
+
+
+@main.route('/admin/update_round/<int:round_id>', methods=['POST'])
+def update_round(round_id):
+    try:
+        round_to_update = Round.query.get(round_id)
+        if round_to_update:
+            # Get the new end date from the form data
+            new_end_date_str = request.form.get('end_date')
+            new_end_date = datetime.strptime(new_end_date_str, '%Y-%m-%d').date()  # Convert string to date
+
+            # Convert string to date
+            new_end_date = datetime.strptime(new_end_date_str, '%Y-%m-%d').date()
+            
+            # Check if the new end date is before the start date
+            if new_end_date < round_to_update.start_date:
+                flash('End date cannot be before the start date.', 'danger')
+                return redirect(url_for('main.admin_dashboard'))
+
+            
+
+
+            # Update the end date of the round
+            round_to_update.end_date = new_end_date
+            
+            # Check if the new end date is the same as the current date
+            if new_end_date == datetime.now().date():
+                round_to_update.is_active = False  # Set to inactive if the end date is today
+
+            db.session.commit()
+            flash('Round updated successfully!', 'success')
+        else:
+            flash('Round not found.', 'danger')
+    except ValueError as ve:
+        flash(f'Invalid date format: {ve}', 'danger')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error updating round: {e}', 'danger')
+
+    return redirect(url_for('main.admin_dashboard'))
+
 
 @main.route('/unblock_user', methods=['POST'])
 def unblock_user():
@@ -277,6 +366,9 @@ def service_requests():
 def student_dashboard():
     current_user_id = session.get('user_id')
     student = Student.query.filter_by(id=current_user_id).first()  # Fetch the student record directly
+
+    # Fetch the current active round
+    active_round = Round.query.filter_by(is_active=True).first()
 
     # Fetch all college-major pairs
     college_major_pairs = db.session.query(

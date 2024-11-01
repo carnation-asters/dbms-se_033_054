@@ -2,7 +2,39 @@
 {% block title %}Admin Dashboard{% endblock %}
 {% block content %}
     <h2>Admin Dashboard</h2>
-    <h3>Welcome, {{ admin.username }}!</h1>
+    <h3>Welcome, {{ admin.username }}!</h3>
 
+    {% if active_round %}
+        <p>Current Active Round ID: {{ active_round.round_id }}</p>
+        <p>Started on: {{ active_round.start_date }}</p>
+        <p>End Date: {{ active_round.end_date }}</p>
+        
+    
+        <h4>Update End Date for Current Round</h4>
+        <form action="{{ url_for('main.update_round', round_id=active_round.round_id) }}" method="post">
+            <label for="end_date">New End Date:</label>
+            <input type="date" name="end_date" required>
+            <button type="submit">Update End Date</button>
+        </form>
+        
 
+    {% else %}
+        <p>No active round found.</p>
+        
+        <h4>Start New Round</h4>
+        <form action="{{ url_for('main.add_round') }}" method="post">
+            <label for="start_date">Start Date:</label>
+            <input type="date" name="start_date" required>
+            
+            <label for="end_date">End Date:</label>
+            <input type="date" name="end_date" required>
+            
+            <button type="submit">Start New Round</button>
+        </form>
+    {% endif %}
+
+    {% if latest_round and not active_round %}
+        <p>Last Round Ended on: {{ latest_round.end_date }}</p>
+    {% endif %}
+    
 {% endblock %}
