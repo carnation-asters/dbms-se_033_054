@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}Past Reviews{% endblock %}
+
+{% block content %}
+    <h2>Your Past Reviews</h2>
+    <div class="row">
+        {% for review in reviews %}
+            <div class="card col-md-3 mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Professional: {{ review.professional.name }}</h5>
+                    <p class="card-text">Rating: {{ review.rating }} / 5</p>
+                    <p class="card-text">Comments: {{ review.comments }}</p>
+                    <p class="card-text">Date of Review: {{ review.date_posted.strftime('%Y-%m-%d') }}</p>
+                    
+                    <!-- Option to edit review -->
+                    <a href="{{ url_for('main.edit_review',review_id=review.id )}}" class="btn btn-warning">Edit review</a>
+                    <form method="POST" action="{{ url_for('main.delete_review', review_id=review.id) }}">
+                        <button type="submit" class="btn btn-danger">Delete Review</button>
+                    </form>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+    <div class="mt-4">
+        <a href="{{ url_for('main.customer_dashboard') }}" class="btn btn-secondary">Go Back to Customer Dashboard</a>
+    </div>
+{% endblock %}

@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Review{% endblock %}
+
+{% block content %}
+    <h2>Edit Your Review for {{ review.professional.name }}</h2>
+    <form method="POST" action="{{ url_for('main.edit_review', review_id=review.id) }}">
+        <div class="form-group">
+            <label for="rating">Rating (out of 5):</label>
+            <input type="number" id="rating" name="rating" class="form-control" value="{{ review.rating }}" min="1" max="5" required>
+        </div>
+        <div class="form-group mt-3">
+            <label for="comments">Comments:</label>
+            <textarea id="comments" name="comments" class="form-control" rows="4" required>{{ review.comments }}</textarea>
+        </div>
+        <button type="submit" class="btn btn-warning">Update Review</button>
+    </form>
+    <a href="{{ url_for('main.past_reviews') }}" class="btn btn-secondary mt-3">Cancel</a>
+{% endblock %}
+
+
+   

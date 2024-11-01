@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}All Customers{% endblock %}
+{% block content %}
+    <h2>All Customers</h2>
+    <div class="row">
+        {% for customer in customers %}
+            <div class="col-md-4">
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ customer.name }}</h5>
+                        <p class="card-text">
+                            <strong>Email:</strong> {{ customer.email }}<br>
+                            <strong>Username:</strong> {{ customer.username }}<br>
+                        </p>
+                        <form method="POST" action="{{ url_for('main.remove_user', user_id=customer.id) }}">
+                            <button type="submit" class="btn btn-danger">Remove Customer</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        {% else %}
+            <div class="col-md-12">
+                <div class="alert alert-info">No customers found.</div>
+            </div>
+        {% endfor %}
+    </div>
+    <a href="{{ url_for('main.admin_dashboard') }}">
+        <button class="btn btn-secondary">Go Back to Admin Dashboard</button>
+    </a>
+{% endblock %}

@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}All Approved Professionals{% endblock %}
+{% block content %}
+<h2>{{ title }}</h2>
+<div class="row">
+    {% for professional, user in professionals %}
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">{{ professional.name }}</h5>
+                    <p class="card-text">
+                        <strong>Service Type:</strong> {{ professional.service_type }}<br>
+                        <strong>Experience:</strong> {{ professional.experience }} years<br>
+                        <strong>Description:</strong> {{ professional.description }}<br>
+                    </p>
+                    
+                    {% if user.is_active %}  {# Check if the user is active #}
+                        <form method="POST" action="{{ url_for('main.remove_user', user_id=professional.id) }}">
+                            <button type="submit" class="btn btn-danger">Remove Professional</button>
+                        </form>
+                    {% else %} {# If not active, show unblock button #}
+                        <form method="POST" action="{{ url_for('main.unblock_user') }}">
+                            <input type="hidden" name="user_id" value="{{ professional.id }}">
+                            <button type="submit" class="btn btn-warning">Unblock</button>
+                        </form>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    {% else %}
+        <div class="col-md-12">
+            <div class="alert alert-info">No professionals found.</div>
+        </div>
+    {% endfor %}
+</div>
+<a href="{{ url_for('main.admin_dashboard') }}">
+    <button class="btn btn-secondary">Go Back to Admin Dashboard</button>
+</a>
+{% endblock %}

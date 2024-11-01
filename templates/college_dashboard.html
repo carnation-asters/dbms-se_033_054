@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}College Dashboard{% endblock %}
+
+{% block content %}
+<!-- Display College Name -->
+<h1 class="mt-4">college {{ college.name }} dashboard</h1>
+
+<!-- Button to open the add major page -->
+<a href="{{ url_for('main.add_major') }}" class="btn btn-primary">
+    Add Major
+</a>
+    
+
+
+<!-- Display Majors as Cards -->
+<h3 class="mt-4">Majors</h3>
+<div class="row">
+    {% if majors %}
+        {% for major in majors %}
+            <div class="card col-md-3 m-2">
+                <div class="card-body">
+                    <h5 class="card-title">{{ major.name }}</h5>
+                    <p class="card-text">Seat Count: {{ major.seat_count }}</p>
+                </div>
+            </div>
+        {% endfor %}
+    {% else %}
+        <div class="col-md-12">
+            <div class="alert alert-info">No majors added yet.</div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

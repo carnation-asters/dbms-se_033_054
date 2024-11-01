@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Service Request History{% endblock %}
+{% block content %}
+    <h2>Your Service Request History</h2>
+    <div class="row">
+        {% for request in requests %}
+            <div class="card col-md-3 mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">{{ request.service.name }}</h5>
+                    <p class="card-text">Status: {{ request.service_status }}</p>
+                    <p class="card-text">Date of request: {{ request.date_of_request }}</p>
+                    <p class="card-text">Name of Professional: {{ request.professional.name }}</p>
+                    
+                    {% if request.service_status == 'Pending' %}
+                        <!-- Delete button for pending requests -->
+                        <form method="POST" action="{{ url_for('main.delete_request', request_id=request.id) }}">
+                            <button type="submit" class="btn btn-danger">Delete Request</button>
+                        </form>
+                    {% elif request.service_status == 'Rejected' %}
+                        <p class="text-danger">Status: Rejected</p>
+                    {% else %}
+                        {% if request.review %}
+                            <!-- If review exists, show edit review button -->
+                            <form method="GET" action="{{ url_for('main.edit_review', review_id=request.review.id) }}">
+                                <button type="submit" class="btn btn-warning">Edit Review</button>
+                            </form>
+                            <form method="POST" action="{{ url_for('main.delete_review', review_id=request.review.id) }}">
+                                <button type="submit" class="btn btn-danger">Delete Review</button>
+                            </form>
+                        {% else %}
+                            <!-- If no review exists, show leave a review button -->
+                            <form method="POST" action="{{ url_for('main.leave_review', professional_id=request.professional_id) }}">
+                                <button type="submit" class="btn btn-info">Leave a Review</button>
+                            </form>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+    <div class="mt-4">
+        <a href="{{ url_for('main.customer_dashboard') }}" class="btn btn-secondary">Go Back to Customer Dashboard</a>
+    </div>
+{% endblock %}

@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}All Colleges{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Back to Dashboard Button -->
+    <a href="{{ url_for('main.student_dashboard') }}" class="btn btn-secondary mb-3">Back to Dashboard</a>
+
+    <h2>All Colleges and Majors</h2>
+
+    <div class="row">
+        {% for college in colleges %}
+            {% for major in college.majors %}
+                <div class="col-md-4 mb-3">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ college.name }}</h5>
+                            <p class="card-text">{{ college.description }}</p>
+                            <hr>
+                            <h6>Major: {{ major.name }}</h6>
+                            <p>Total Seats : {{ major.seat_count }}</p>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

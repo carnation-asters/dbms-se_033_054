@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Service{% endblock %}
+
+{% block content %}
+    <h2>Edit Service: {{ service.name }}</h2>
+    <form method="POST" action="{{ url_for('main.update_service', service_id=service.id) }}">
+        <div class="form-group">
+            <label for="name">Service Name:</label>
+            <input type="text" id="name" name="name" class="form-control" value="{{ service.name }}" required>
+        </div>
+        <div class="form-group">
+            <label for="price">Price:</label>
+            <input type="number" step="0.01" id="price" name="price" class="form-control" value="{{ service.price }}" required>
+        </div>
+        <div class="form-group">
+            <label for="time_required">Time Required (minutes):</label>
+            <input type="number" id="time_required" name="time_required" class="form-control" value="{{ service.time_required }}" required>
+        </div>
+        <div class="form-group">
+            <label for="description">Description:</label>
+            <textarea id="description" name="description" class="form-control" rows="4">{{ service.description }}</textarea>
+        </div>
+        <button type="submit" class="btn btn-warning">Update Service</button>
+    </form>
+    <a href="{{ url_for('main.services') }}" class="btn btn-secondary mt-3">Cancel</a>
+{% endblock %}

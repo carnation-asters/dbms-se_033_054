@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Add Major{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h3>Add New Major</h3>
+    <form method="POST" action="{{ url_for('main.add_major') }}">
+
+        <div class="mb-3">
+            <label for="majorName" class="form-label">Major Name</label>
+            <input type="text" class="form-control" id="majorName" name="name" required>
+        </div>
+        <div class="mb-3">
+            <label for="seatCount" class="form-label">Seat Count</label>
+            <input type="number" class="form-control" id="seatCount" name="seat_count" required>
+        </div>
+        <input type="hidden" name="college_id" value="{{ college.id }}"> <!-- Ensure this is set -->
+        <button type="submit" class="btn btn-primary">Add Major</button>
+        <a href="{{ url_for('main.college_dashboard') }}" class="btn btn-secondary">Cancel</a>
+    </form>
+</div>
+{% endblock %}

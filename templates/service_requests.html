@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Service Requests{% endblock %}
+{% block content %}
+    <h2>Service Requests</h2>
+    <h3>Existing Requests</h3>
+    <div class="row">
+        {% for request in requests %}
+            <div class="card col-md-4 mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">{{ request.service.name }}</h5>
+                    <p class="card-text">Requested by: {{ request.customer.name }}</p>
+                    <p class="card-text">Status: {{ request.service_status }}</p>
+                    <p class="card-text">Date of Request: {{ request.date_of_request.strftime('%Y-%m-%d') }}</p>
+                    
+                    {% if request.service_status == 'Pending' %}
+                        <!-- Accept button for new requests -->
+                        <form method="POST" action="{{ url_for('main.accept_request', request_id=request.id) }}">
+                            <button type="submit" class="btn btn-success">Accept Request</button>
+                        </form>
+                        <!-- Delete button for new requests -->
+                        <form method="POST" action="{{ url_for('main.delete_c_request', request_id=request.id) }}" class="mt-2">
+                            <button type="submit" class="btn btn-danger">Delete Request</button>
+                        </form>
+                    {% elif request.service_status == 'accepted' %}
+                        <!-- Complete button for accepted requests -->
+                        <form method="POST" action="{{ url_for('main.complete_request', request_id=request.id) }}">
+                            <button type="submit" class="btn btn-primary">Mark as Complete</button>
+                        </form>
+                    {% elif request.service_status == 'complete' %}
+                        <p class="text-success">Status: Completed</p>
+                        
+                    {% elif request.service_status == 'rejected' %}
+                        <p class="text-danger">Status: Rejected</p>
+                    {% endif %}
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+    <div class="mt-4">
+        <a href="{{ url_for('main.serviceprofessional_dashboard') }}" class="btn btn-secondary">Go Back to Dashboard</a>
+    </div>
+{% endblock %}

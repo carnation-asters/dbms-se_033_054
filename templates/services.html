@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Manage Services{% endblock %}
+{% block content %}
+<form class="form-inline my-2 my-lg-0" action="{{ url_for('main.services') }}" method="POST">
+    <input class="form-control mr-sm-2" type="search" placeholder="Search by Service name" aria-label="Search" name="search_query" required>
+    <button class="btn btn-outline-success my-2 my-sm-0" type="submit">Search</button>
+</form>
+    <h2>Manage Services</h2>
+    
+    <!-- Form to add a new service -->
+    <form method="POST" action="{{ url_for('main.services') }}">
+        <div class="form-group">
+            <label for="name">Service Name</label>
+            <input type="text" class="form-control" id="name" name="name" required>
+        </div>
+        <div class="form-group">
+            <label for="price">Price</label>
+            <input type="number" step="0.01" class="form-control" id="price" name="price" required>
+        </div>
+        <div class="form-group">
+            <label for="time_required">Time Required (minutes)</label>
+            <input type="number" class="form-control" id="time_required" name="time_required" required>
+        </div>
+        <div class="form-group">
+            <label for="description">Description</label>
+            <textarea class="form-control" id="description" name="description"></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">Add Service</button>
+    </form>
+
+    <!-- Section to display existing services -->
+    <h3>Existing Services</h3>
+    <div class="row">
+        {% if services %}
+            {% for service in services %}
+                <div class="col-md-4 mb-3">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ service.name }}</h5>
+                            <p class="card-text">Price: ${{ service.price }}</p>
+                            <p class="card-text">Time Required: {{ service.time_required }} mins</p>
+                            <p class="card-text">{{ service.description }}</p>
+                            <form method="GET" action="{{ url_for('main.edit_service', service_id=service.id) }}">
+                                <button type="submit" class="btn btn-warning">Edit Service</button>
+                            </form>
+
+                            <!-- Delete Service Button -->
+                            <form method="POST" action="{{ url_for('main.delete_service', service_id=service.id) }}" onsubmit="return confirm('Are you sure you want to delete this service?');">
+                                <input type="hidden" name="service_id" value="{{ service.id }}">
+                                <button type="submit" class="btn btn-danger">Delete Service</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="col-12">
+                <div class="alert alert-warning" role="alert">
+                    No services found.
+                </div>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Go back button -->
+    <a href="{{ url_for('main.admin_dashboard') }}">
+        <button class="btn btn-secondary">Go Back to Admin Dashboard</button>
+    </a>
+{% endblock %}
