@@ -56,15 +56,16 @@ def register_student():
         password = request.form.get('password')
         name = request.form.get('name')
         address = request.form.get('address')
+        rank=request.form.get('rank')
         role = 'STUDENT'
 
         # Debugging output
         print(f"Request method: {request.method}")
-        print(f"Creating user with Username: {username}, Email: {email}, Password: {password}, Role: {role}")
+        print(f"Creating user with Username: {username}, Email: {email}, Password: {password}, Role: {role},Rank: {rank}")
         print(f"Form data: {request.form}")
 
         # Validate inputs
-        if not username or not email or not password or not name or not address:
+        if not username or not email or not password or not name or not address or not rank:
             flash('Please fill in all fields.')
             return redirect(url_for('main.register_student'))
 
@@ -87,7 +88,7 @@ def register_student():
             return redirect(url_for('main.register_student'))
 
         # Create a customer entry
-        student = Student(id=new_user.id, name=name, address=address)
+        student = Student(id=new_user.id, name=name, address=address,rank=rank)
         db.session.add(student)
 
         try:

@@ -33,6 +33,7 @@ class Student(db.Model):
     name = db.Column(db.String(50), nullable=False)
     address = db.Column(db.String(200), nullable=True)
     eligibility_status = db.Column(db.Boolean, default=False)  # New field
+    rank= db.Column(db.Integer,nullable=False)
     seat_preferences = db.relationship('SeatPreference', back_populates='student')  # Relationship with SeatPreference
 
 #Major model 
