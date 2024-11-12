@@ -4,89 +4,89 @@
 {% block content %}
 <div class="container mt-4">
     <h1>Welcome, {{ student.name }}!</h1>
-    <!-- Button to view all colleges -->
     <a href="{{ url_for('main.view_colleges') }}" class="btn btn-primary mt-3">Look at All Colleges</a>
 
-    <!-- student eligibility -->
     {% if student.eligibility_status %}
-        <div class="alert alert-success mt-3">
-            Student can participate in rounds
-        </div>
+        {% if student.round_furthering%}
+            <div class="alert alert-success mt-3">Student can participate in rounds</div>
+        {% else %}
+        <div class="alert alert-success mt-3">Student has withdrawn and cannot participate in further rounds</div>
+        {% endif %}
+
 
         <!-- Display Preferences -->
-        <h3>Your Preferences for Current Round</h3>
+        <h3>Your Preferences for Rounds</h3>
         {% if saved_preferences %}
             <ul class="list-group mt-3">
                 {% for preference in saved_preferences %}
                     <li class="list-group-item">
-                        {{ preference.college.name }} - {{ preference.major.name }} (Preference {{ preference.preference_order }})
+                        Round {{ preference.round_id }} : {{ preference.college.name }} - {{ preference.major.name }} (Preference {{ preference.preference_order }})
                     </li>
                 {% endfor %}
             </ul>
         {% else %}
-            <div class="alert alert-warning mt-3">
-                You have not set any preferences yet.
-            </div>
-
-            <!-- Preference Selection Form -->
-            {% if active_round %}
-            <h3>Set Your Preferences for Round {{ active_round.round_number }}</h3>
-            <form method="POST" action="{{ url_for('main.student_dashboard') }}">
-                <div class="mb-3">
-                    <label for="preference1" class="form-label">Preference 1</label>
-                    <select class="form-select" id="preference1" name="preference1" required>
-                        <option value="">Select a College-Major Pair</option>
-                        {% for college_major in college_major_pairs %}
-                            <option value="{{ college_major.major_id }}">{{ college_major.college_name }} - {{ college_major.major_name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <div class="mb-3">
-                    <label for="preference2" class="form-label">Preference 2</label>
-                    <select class="form-select" id="preference2" name="preference2" required>
-                        <option value="">Select a College-Major Pair</option>
-                        {% for college_major in college_major_pairs %}
-                            <option value="{{ college_major.major_id }}">{{ college_major.college_name }} - {{ college_major.major_name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <button type="submit" class="btn btn-primary">Save Preferences</button>
-            </form>
-            {% else %}
-                <div class="alert alert-info mt-3">
-                    No active counseling round available to set preferences.
-                </div>
-            {% endif %}
+            <div class="alert alert-warning mt-3">You have not set any preferences yet.</div>
         {% endif %}
+
+        {% if active_round and student.round_furthering %}
+            {% if saved_preferences and saved_preferences[-1].round_id == active_round.round_id %}
+                <div class="alert alert-info mt-3">Preferences are already set for this round.</div>
+            {% else %}
+                <h3>Set Your Preferences for Round {{ active_round.round_number }}</h3>
+                <form method="POST" action="{{ url_for('main.student_dashboard') }}">
+                    <div class="mb-3">
+                        <label for="preference1" class="form-label">Preference 1</label>
+                        <select class="form-select" id="preference1" name="preference1" required>
+                            <option value="">Select a College-Major Pair</option>
+                            {% for college_major in college_major_pairs %}
+                                <option value="{{ college_major.major_id }}">{{ college_major.college_name }} - {{ college_major.major_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+
+                        <label for="preference2" class="form-label">Preference 2</label>
+                        {% if previous_allotment and previous_allotment.choice=="freeze_and_upgrade" %}
+                             <!-- Show the automatically set preference from the previous round -->
+                            <input type="text" class="form-control" value="{{ previous_allotment.preference.college.name }} - {{ previous_allotment.preference.major.name }}" readonly>
+                            <input type="hidden" name="preference2" value="{{ previous_allotment.major_id }}">
+                        {% else %}
+                            <select class="form-select" id="preference2" name="preference2" required>
+                                <option value="">Select a College-Major Pair</option>
+                                {% for college_major in college_major_pairs %}
+                                    <option value="{{ college_major.major_id }}">{{ college_major.college_name }} - {{ college_major.major_name }}</option>
+                                {% endfor %}
+                            </select>
+                        {% endif %}
+                    </div>
+                    <button type="submit" class="btn btn-primary">Save Preferences</button>
+                </form>
+            {% endif %}
+        {% else %}
+            <div class="alert alert-info mt-3">No active counseling round available to set preferences.</div>
+        {% endif %}
+
         <h3>Seat Allotments</h3>
         {% if seat_allotments %}
             <div class="row">
                 {% for allotment in seat_allotments %}
                     <div class="col-md-4 mb-4">
-                        <div class="card">
+                        <div class="card {% if allotment.status == 'active' %}border-success{% else %}border-secondary{% endif %}">
                             <div class="card-body">
                                 <h5 class="card-title">{{ allotment.preference.college.name }} - {{ allotment.preference.major.name }}</h5>
                                 <p>Round: {{ allotment.round_id }}</p>
-                                
-                                {% if allotment.status == 'active' and student.round_furthering and (not allotment.choice or allotment.choice == 'NULL') %}
+                                {% if allotment.status == 'active' and not allotment.choice %}
                                     <form method="POST" action="{{ url_for('main.update_choice', allotment_id=allotment.id) }}">
-                                        <div class="mb-3">
-                                            <label for="choice{{ allotment.id }}" class="form-label">Choose an option:</label>
-                                            <select class="form-select" id="choice{{ allotment.id }}" name="choice" required>
-                                                <option value="">Select an Option</option>
-                                                <option value="accept">Accept</option>
-                                                <option value="freeze_and_upgrade">Freeze and Upgrade</option>
-                                                <option value="reject_and_upgrade">Reject and Upgrade</option>
-                                                <option value="withdraw">Withdraw</option>
-                                            </select>
-                                        </div>
-                                        <button type="submit" class="btn btn-primary">Submit</button>
+                                        <label for="choice{{ allotment.id }}" class="form-label">Choose an option:</label>
+                                        <select class="form-select" id="choice{{ allotment.id }}" name="choice" required>
+                                            <option value="">Select an Option</option>
+                                            <option value="accept">Accept</option>
+                                            <option value="freeze_and_upgrade">Freeze and Upgrade</option>
+                                            <option value="reject_and_upgrade">Reject and Upgrade</option>
+                                            <option value="withdraw">Withdraw</option>
+                                        </select>
+                                        <button type="submit" class="btn btn-primary mt-2">Submit</button>
                                     </form>
-                               
-
-                                        
                                 {% elif allotment.choice %}
                                     <p>Choice: {{ allotment.choice.replace('_', ' ').title() }}</p>
                                 {% else %}
@@ -98,15 +98,10 @@
                 {% endfor %}
             </div>
         {% else %}
-            <div class="alert alert-warning mt-3">
-                No seats have been allotted in any round.
-            </div>
+            <div class="alert alert-warning mt-3">No seats have been allotted in any round.</div>
         {% endif %}
     {% else %}
-        <div class="alert alert-danger mt-3">
-            Student is not eligible for rounds
-        </div>
+        <div class="alert alert-danger mt-3">Student is not eligible for rounds</div>
     {% endif %}
-    
 </div>
 {% endblock %}

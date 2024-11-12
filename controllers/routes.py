@@ -368,54 +368,77 @@ def edit_major(major_id):
 def student_dashboard():
     current_user_id = session.get('user_id')
     student = Student.query.filter_by(id=current_user_id).first()
-
-    # Fetch the current active round
     active_round = Round.query.filter_by(is_active=True).first()
-
-    # Fetch all college-major pairs
     college_major_pairs = db.session.query(
         Major.id.label('major_id'),
         Major.name.label('major_name'),
         College.id.label('college_id'),
         College.name.label('college_name')
     ).join(College).all()
-
-    # Fetch saved seat preferences for the student
     saved_preferences = SeatPreference.query.filter_by(student_id=current_user_id).all()
-
-    # Fetch seat allotments for all rounds for the student
     seat_allotments = StudentAllotment.query.filter_by(student_id=current_user_id).all()
 
+    # Check previous round's choice for "freeze and upgrade" or "reject and upgrade"
+    previous_allotment = (
+        StudentAllotment.query
+        .filter(StudentAllotment.student_id == current_user_id,
+                StudentAllotment.choice.in_(['freeze_and_upgrade', 'reject_and_upgrade'])
+                )
+        .order_by(StudentAllotment.round_id.desc())
+        .first()
+    )
+    print("prev",previous_allotment)
     if request.method == 'POST':
-        preference1_id = request.form.get('preference1')
-        preference2_id = request.form.get('preference2')
+        try:
+            preference1_id = request.form.get('preference1')
+            preference2_id = None
+            
+            if previous_allotment:
+                if previous_allotment.choice == 'freeze_and_upgrade':
+                    previous_pref = SeatPreference.query.get(previous_allotment.pref_id)
+                    if previous_pref:
+                        preference2_id = previous_pref.major_id
+                elif previous_allotment.choice == 'reject_and_upgrade':
+                    preference2_id = request.form.get('preference2')
 
-        # Retrieve preferences and create new SeatPreference entries
-        preference1 = Major.query.get(preference1_id)
-        preference2 = Major.query.get(preference2_id)
+            else:
+                # Both preferences are freely selectable if choice was "reject_and_upgrade" or no specific condition applies
+                preference2_id = request.form.get('preference2')
 
-        if preference1 and preference2:
-            new_preference1 = SeatPreference(
-                student_id=current_user_id,
-                college_id=preference1.college_id,
-                major_id=preference1.id,
-                preference_order=1,
-                round_id=active_round.round_id
-            )
-            new_preference2 = SeatPreference(
-                student_id=current_user_id,
-                college_id=preference2.college_id,
-                major_id=preference2.id,
-                preference_order=2,
-                round_id=active_round.round_id
-            )
-
-            db.session.add(new_preference1)
-            db.session.add(new_preference2)
-            db.session.commit()
-
-            flash('Preferences saved successfully!', 'success')
-            return redirect(url_for('main.student_dashboard'))
+            existing_preferences = SeatPreference.query.filter_by(
+                student_id=current_user_id, round_id=active_round.round_id
+            ).all()
+            
+            if not existing_preferences:
+                preference1 = Major.query.get(preference1_id)
+                preference2 = Major.query.get(preference2_id)
+                if preference1 and preference2:
+                    new_preference1 = SeatPreference(
+                        student_id=current_user_id,
+                        college_id=preference1.college_id,
+                        major_id=preference1.id,
+                        preference_order=1,
+                        round_id=active_round.round_id
+                    )
+                    new_preference2 = SeatPreference(
+                        student_id=current_user_id,
+                        college_id=preference2.college_id,
+                        major_id=preference2.id,
+                        preference_order=2,
+                        round_id=active_round.round_id
+                    )
+                    db.session.add(new_preference1)
+                    db.session.add(new_preference2)
+                    db.session.commit()
+                    flash('Preferences saved successfully!', 'success')
+                else:
+                    flash('Invalid preferences selected.', 'danger')
+            else:
+                flash('Preferences for this round already exist.', 'warning')
+        except Exception as e:
+            db.session.rollback()
+            flash('An error occurred while saving preferences.', 'danger')
+        return redirect(url_for('main.student_dashboard'))
 
     return render_template(
         'student_dashboard.html',
@@ -423,8 +446,10 @@ def student_dashboard():
         college_major_pairs=college_major_pairs,
         saved_preferences=saved_preferences,
         active_round=active_round,
-        seat_allotments=seat_allotments
+        seat_allotments=seat_allotments,
+        previous_allotment=previous_allotment
     )
+
 
 @main.route('/view_colleges', methods=['GET'])
 def view_colleges():
@@ -435,6 +460,7 @@ def view_colleges():
 
 
 # Helper function to handle seat allocation logic
+# Helper function to handle seat allocation logic
 def allocate_seats(round_id):
     # Retrieve all students for the given round sorted by rank
     students = Student.query.order_by(Student.rank).all()
@@ -442,17 +468,51 @@ def allocate_seats(round_id):
     for student in students:
         allocated = False  # Track if the student gets a seat
 
-        # Go through each preference in order for this specific round
-        preferences = SeatPreference.query.filter_by(student_id=student.id, round_id=round_id).order_by(SeatPreference.preference_order).all()
+        # Fetch the previous round allotment for this student
+        previous_allotment = StudentAllotment.query.filter_by(
+            student_id=student.id,
+            status='active'
+        ).order_by(StudentAllotment.round_id.desc()).first()
 
-        for preference in preferences:
+        # Go through each preference in order for this specific round
+        preferences = SeatPreference.query.filter_by(
+            student_id=student.id, 
+            round_id=round_id
+        ).order_by(SeatPreference.preference_order).all()
+
+        for idx, preference in enumerate(preferences):
             major = Major.query.filter_by(id=preference.major_id).first()
 
             # Check if there's an available seat in this major
             if major and major.alloted_seat_count < major.seat_count:
-                # Allocate seat to this student for this preference
-                major.alloted_seat_count += 1
-                db.session.add(major)
+                
+                # If previous choice was "freeze and upgrade" and this is the current round's first preference
+                if previous_allotment and previous_allotment.choice == 'freeze_and_upgrade':
+                    previous_preference = SeatPreference.query.get(previous_allotment.pref_id)
+                    previous_major = Major.query.filter_by(id=previous_preference.major_id).first()
+
+                    # If the first preference is available, update both seat counts accordingly
+                    if idx == 0:
+                        # Increase seat count of new allocation's major (preference 1)
+                        major.alloted_seat_count += 1
+                        db.session.add(major)
+
+                        # Decrease seat count of previous major (preference 2)
+                        if previous_major and previous_major.alloted_seat_count > 0:
+                            previous_major.alloted_seat_count -= 1
+                            db.session.add(previous_major)
+
+                    # If the second preference is allocated, proceed without changing seat counts
+                    elif idx == 1:
+                        # Only allocate seat without updating seat counts
+                        major.alloted_seat_count += 1
+                        db.session.add(major)
+                
+                # Default logic if previous choice was not "freeze and upgrade"
+                else:
+                    # Allocate seat to this student for this preference
+                    major.alloted_seat_count += 1
+                    db.session.add(major)
 
                 # Record the seat allocation in the StudentAllotment table
                 allocation = StudentAllotment(
@@ -471,11 +531,12 @@ def allocate_seats(round_id):
     db.session.commit()
     return "Seat allocation completed for round."
 
-
+#choice 
 @main.route('/update_choice/<int:allotment_id>', methods=['POST'])
 def update_choice(allotment_id):
     choice = request.form.get('choice')
     allotment = StudentAllotment.query.get_or_404(allotment_id)
+    major = allotment.preference.major
 
     if choice == 'accept':
         allotment.status = 'active'
@@ -486,9 +547,15 @@ def update_choice(allotment_id):
     elif choice == 'reject_and_upgrade':
         allotment.status = 'inactive'
         allotment.student.round_furthering = True
+        if major.alloted_seat_count > 0:  # Ensure that the seat_count doesn't go negative
+            major.alloted_seat_count -= 1
+            db.session.commit()
     elif choice == 'withdraw':
         allotment.status = 'inactive'
         allotment.student.round_furthering = False
+        if major.alloted_seat_count > 0:  # Ensure that the seat_count doesn't go negative
+            major.alloted_seat_count -= 1
+            db.session.commit()
 
     allotment.choice = choice
     db.session.commit()
