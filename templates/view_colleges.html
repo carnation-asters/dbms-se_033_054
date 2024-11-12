@@ -4,7 +4,11 @@
 {% block content %}
 <div class="container mt-4">
     <!-- Back to Dashboard Button -->
+     {%if user.role=='STUDENT' %}
     <a href="{{ url_for('main.student_dashboard') }}" class="btn btn-secondary mb-3">Back to Dashboard</a>
+    {%elif user.role=='ADMIN'%}
+    <a href="{{ url_for('main.admin_dashboard') }}" class="btn btn-secondary mb-3">Back to Dashboard</a>
+    {%endif%}
 
     <h2>All Colleges and Majors</h2>
 

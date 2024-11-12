@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Edit Major{% endblock %}
+
+{% block content %}
+<h1 class="mt-4">Edit Major</h1>
+
+<form action="{{ url_for('main.edit_major', major_id=major.id) }}" method="post">
+    <div class="form-group">
+        <label for="name">Major Name</label>
+        <input type="text" class="form-control" id="name" name="name" value="{{ major.name }}" required>
+    </div>
+    
+    <div class="form-group">
+        <label for="seat_count">Seat Count</label>
+        <input type="number" class="form-control" id="seat_count" name="seat_count" value="{{ major.seat_count }}" required>
+    </div>
+    
+    <button type="submit" class="btn btn-primary">Save Changes</button>
+    <a href="{{ url_for('main.college_dashboard') }}" class="btn btn-secondary">Cancel</a>
+</form>
+{% endblock %}
+

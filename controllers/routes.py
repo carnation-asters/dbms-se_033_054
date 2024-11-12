@@ -57,11 +57,12 @@ def register_student():
         name = request.form.get('name')
         address = request.form.get('address')
         rank=request.form.get('rank')
+        doc_url=request.form.get('docurl')
         role = 'STUDENT'
 
         # Debugging output
         print(f"Request method: {request.method}")
-        print(f"Creating user with Username: {username}, Email: {email}, Password: {password}, Role: {role},Rank: {rank}")
+        print(f"Creating user with Username: {username}, Email: {email}, Password: {password}, Role: {role},Rank: {rank},Doc_url:{doc_url}")
         print(f"Form data: {request.form}")
 
         # Validate inputs
@@ -88,7 +89,7 @@ def register_student():
             return redirect(url_for('main.register_student'))
 
         # Create a customer entry
-        student = Student(id=new_user.id, name=name, address=address,rank=rank)
+        student = Student(id=new_user.id, name=name, address=address,rank=rank,doc_url=doc_url)
         db.session.add(student)
 
         try:
@@ -115,7 +116,6 @@ def register_college():
         name = request.form.get('name')
         experience = request.form.get('experience')
         desc = request.form.get('desc')
-        doc_url = request.form.get('doc_url')
         role = 'COLLEGE'
 
         # Validate inputs
@@ -136,7 +136,7 @@ def register_college():
 
         # Create a service college entry
         college = College(id=new_user.id, name=name,
-                                           experience=experience, doc_url=doc_url, description=desc)
+                                           experience=experience, description=desc)
         db.session.add(college)
         db.session.commit()
 
@@ -165,7 +165,7 @@ def admin_dashboard():
                            latest_round=latest_round)
 
 
-
+#add round
 @main.route('/admin/add_round', methods=['POST'])
 def add_round():
     start_date = datetime.now() 
@@ -186,7 +186,7 @@ def add_round():
 
     return redirect(url_for('main.admin_dashboard'))
 
-
+#end round
 @main.route('/admin/end_round/<int:round_id>', methods=['POST'])
 def end_round(round_id):
     try:
@@ -215,6 +215,31 @@ def end_round(round_id):
 
     return redirect(url_for('main.admin_dashboard'))
 
+#view student
+@main.route('/view_students')
+def view_students():
+    # Query all students from the database, excluding passwords
+    students = Student.query.all()
+    
+    return render_template('view_students.html', students=students)
+
+#change eligiblity status 
+@main.route('/toggle_eligibility/<int:student_id>', methods=['POST'])
+def toggle_eligibility(student_id):
+    # Fetch the student by ID
+    student = Student.query.get_or_404(student_id)
+    
+    try:
+        # Toggle the eligibility status
+        student.eligibility_status = not student.eligibility_status
+        db.session.commit()
+        flash("Eligibility status updated successfully.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"An error occurred while updating the eligibility status: {str(e)}", "danger")
+    
+    # Redirect back to the view students page
+    return redirect(url_for('main.view_students'))
 
 @main.route('/unblock_user', methods=['POST'])
 def unblock_user():
@@ -242,8 +267,11 @@ def college_dashboard():
     print(college)
     majors = Major.query.filter_by(college_id=current_user_id).all() 
     print(majors)
+    # Check if the rounds table is empty
+    is_rounds_empty = not db.session.query(Round).first()  # Returns True if empty
     
-    return render_template('college_dashboard.html', users=user1,college=college, majors=majors)  # Pass the full user object to the template
+    return render_template('college_dashboard.html', users=user1,college=college, majors=majors,is_rounds_empty=is_rounds_empty)  # Pass the full user object to the template
+
 
 #add major
 @main.route('/add_major', methods=['GET', 'POST'])
@@ -279,6 +307,61 @@ def add_major():
     # If the request is a GET, render the add major page
     college = College.query.get(current_user_id)  # Get the current college object
     return render_template('add_major.html', college=college)  # Pass the college object to the template
+
+#deletre major 
+@main.route('/delete_major/<int:major_id>', methods=['POST'])
+def delete_major(major_id):
+    # Check if the rounds table is empty
+    is_rounds_empty = not db.session.query(Round).first()
+    
+    if not is_rounds_empty:
+        flash("Cannot delete majors while there are active counseling rounds.", "danger")
+        return redirect(url_for('main.college_dashboard'))
+    
+    # Find the major by ID
+    major = Major.query.get_or_404(major_id)
+    
+    try:
+        # Delete the major from the database
+        db.session.delete(major)
+        db.session.commit()
+        flash("Major deleted successfully.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"An error occurred while deleting the major: {str(e)}", "danger")
+    
+    # Redirect to the college dashboard
+    return redirect(url_for('main.college_dashboard'))
+
+#edit major
+@main.route('/edit_major/<int:major_id>', methods=['GET', 'POST'])
+def edit_major(major_id):
+    # Check if the rounds table is empty
+    is_rounds_empty = not db.session.query(Round).first()
+    
+    if not is_rounds_empty:
+        flash("Cannot edit majors while there are active counseling rounds.", "danger")
+        return redirect(url_for('main.college_dashboard'))
+    
+    # Retrieve the major by ID
+    major = Major.query.get_or_404(major_id)
+    
+    if request.method == 'POST':
+        # Update the major details
+        major.name = request.form['name']
+        major.seat_count = request.form['seat_count']
+        
+        try:
+            db.session.commit()
+            flash("Major updated successfully.", "success")
+            return redirect(url_for('main.college_dashboard'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f"An error occurred while updating the major: {str(e)}", "danger")
+            return redirect(url_for('main.edit_major', major_id=major_id))
+    
+    # Render the edit form with current major details (for GET requests)
+    return render_template('edit_major.html', major=major)
 
 
 @main.route('/student/dashboard', methods=['GET', 'POST'])
@@ -345,8 +428,10 @@ def student_dashboard():
 
 @main.route('/view_colleges', methods=['GET'])
 def view_colleges():
+    user=session['user_id']
+    cur=User.query.filter_by(id=user).first()
     colleges = College.query.options(db.joinedload(College.majors)).all()  # Fetch all colleges with their majors
-    return render_template('view_colleges.html', colleges=colleges)
+    return render_template('view_colleges.html', colleges=colleges, user=cur)
 
 
 # Helper function to handle seat allocation logic

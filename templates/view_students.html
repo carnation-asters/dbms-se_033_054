@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}View Students{% endblock %}
+
+{% block content %}
+    <h1 class="mt-4">Students</h1>
+    <div class="row">
+        {% for student in students %}
+            <div class="col-md-4">
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ student.name }}</h5>
+                        <p><strong>Address:</strong> {{ student.address }}</p>
+                        <p><strong>Rank:</strong> {{ student.rank }}</p>
+                        <p><strong>Participating in Further Rounds:</strong> {{ 'Yes' if student.round_furthering else 'No' }}</p>
+                        <p><strong>Eligibility Status:</strong> {{ 'Eligible' if student.eligibility_status else 'Not Eligible' }}</p>
+                        <p><strong>Documentation:</strong> <a href="{{ student.doc_url }}" target="_blank">{{ student.doc_url }}</a></p>
+                        <!-- Form to toggle eligibility status -->
+                        <form action="{{ url_for('main.toggle_eligibility', student_id=student.id) }}" method="post">
+                            <button type="submit" class="btn btn-secondary">
+                                Toggle Eligibility Status
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% endblock %}

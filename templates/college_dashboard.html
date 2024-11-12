@@ -6,10 +6,11 @@
 <h1 class="mt-4">college {{ college.name }} dashboard</h1>
 
 <!-- Button to open the add major page -->
+{% if is_rounds_empty %}
 <a href="{{ url_for('main.add_major') }}" class="btn btn-primary">
     Add Major
 </a>
-    
+{% endif %}
 
 
 <!-- Display Majors as Cards -->
@@ -21,6 +22,17 @@
                 <div class="card-body">
                     <h5 class="card-title">{{ major.name }}</h5>
                     <p class="card-text">Seat Count: {{ major.seat_count }}</p>
+
+                    <!-- Conditional rendering for edit/delete buttons -->
+                    {% if is_rounds_empty %}
+                        <a href="{{ url_for('main.edit_major', major_id=major.id) }}" class="btn btn-warning">Edit</a>
+                        <!-- Delete Button in a Form to POST the Request -->
+                        <form action="{{ url_for('main.delete_major', major_id=major.id) }}" method="post" style="display:inline;">
+                            <button type="submit" class="btn btn-danger" onclick="return confirm('Are you sure you want to delete this major?');">
+                                Delete
+                            </button>
+                        </form>
+                    {% endif %}
                 </div>
             </div>
         {% endfor %}

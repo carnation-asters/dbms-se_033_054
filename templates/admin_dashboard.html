@@ -28,5 +28,8 @@
     {% if latest_round and not active_round %}
         <p>Last Round Ended on: {{ latest_round.end_date }}</p>
     {% endif %}
+     <!-- Button to view students -->
+     <a href="{{ url_for('main.view_students') }}" class="btn btn-primary mt-3">View Students</a>
+     <a href="{{ url_for('main.view_colleges') }}" class="btn btn-primary mt-3">Look at All Colleges</a>
     
 {% endblock %}

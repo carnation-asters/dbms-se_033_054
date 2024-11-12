@@ -22,9 +22,6 @@ class College(db.Model):
     name = db.Column(db.String(50), nullable=False) 
     experience = db.Column(db.Integer, nullable=False)
     description = db.Column(db.Text)
-    doc_url = db.Column(db.String(200), nullable=True) 
-    is_approved = db.Column(db.Boolean, default=False) 
-    is_complete = db.Column(db.Boolean, default=False) 
 
 # Student model
 class Student(db.Model):
@@ -32,6 +29,7 @@ class Student(db.Model):
     id = db.Column(db.Integer, db.ForeignKey('users.id'),primary_key=True)
     name = db.Column(db.String(50), nullable=False)
     address = db.Column(db.String(200), nullable=True)
+    doc_url = db.Column(db.String(200), nullable=True) 
     eligibility_status = db.Column(db.Boolean, default=False)  # New field
     rank= db.Column(db.Integer,nullable=False)
     seat_preferences = db.relationship('SeatPreference', back_populates='student')  # Relationship with SeatPreference
