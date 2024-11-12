@@ -60,6 +60,48 @@
                 </div>
             {% endif %}
         {% endif %}
+        <h3>Seat Allotments</h3>
+        {% if seat_allotments %}
+            <div class="row">
+                {% for allotment in seat_allotments %}
+                    <div class="col-md-4 mb-4">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">{{ allotment.preference.college.name }} - {{ allotment.preference.major.name }}</h5>
+                                <p>Round: {{ allotment.round_id }}</p>
+                                
+                                {% if allotment.status == 'active' and student.round_furthering and (not allotment.choice or allotment.choice == 'NULL') %}
+                                    <form method="POST" action="{{ url_for('main.update_choice', allotment_id=allotment.id) }}">
+                                        <div class="mb-3">
+                                            <label for="choice{{ allotment.id }}" class="form-label">Choose an option:</label>
+                                            <select class="form-select" id="choice{{ allotment.id }}" name="choice" required>
+                                                <option value="">Select an Option</option>
+                                                <option value="accept">Accept</option>
+                                                <option value="freeze_and_upgrade">Freeze and Upgrade</option>
+                                                <option value="reject_and_upgrade">Reject and Upgrade</option>
+                                                <option value="withdraw">Withdraw</option>
+                                            </select>
+                                        </div>
+                                        <button type="submit" class="btn btn-primary">Submit</button>
+                                    </form>
+                               
+
+                                        
+                                {% elif allotment.choice %}
+                                    <p>Choice: {{ allotment.choice.replace('_', ' ').title() }}</p>
+                                {% else %}
+                                    <p>No action required for this allotment.</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="alert alert-warning mt-3">
+                No seats have been allotted in any round.
+            </div>
+        {% endif %}
     {% else %}
         <div class="alert alert-danger mt-3">
             Student is not eligible for rounds

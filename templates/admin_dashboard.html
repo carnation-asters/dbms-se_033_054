@@ -7,14 +7,12 @@
     {% if active_round %}
         <p>Current Active Round ID: {{ active_round.round_id }}</p>
         <p>Started on: {{ active_round.start_date }}</p>
-        <p>End Date: {{ active_round.end_date }}</p>
+        
         
     
-        <h4>Update End Date for Current Round</h4>
-        <form action="{{ url_for('main.update_round', round_id=active_round.round_id) }}" method="post">
-            <label for="end_date">New End Date:</label>
-            <input type="date" name="end_date" required>
-            <button type="submit">Update End Date</button>
+        <h4>End Current Round</h4>
+        <form action="{{ url_for('main.end_round', round_id=active_round.round_id) }}" method="post">
+            <button type="submit">End Current Round</button>
         </form>
         
 
@@ -22,13 +20,7 @@
         <p>No active round found.</p>
         
         <h4>Start New Round</h4>
-        <form action="{{ url_for('main.add_round') }}" method="post">
-            <label for="start_date">Start Date:</label>
-            <input type="date" name="start_date" required>
-            
-            <label for="end_date">End Date:</label>
-            <input type="date" name="end_date" required>
-            
+        <form action="{{ url_for('main.add_round') }}" method="post">   
             <button type="submit">Start New Round</button>
         </form>
     {% endif %}

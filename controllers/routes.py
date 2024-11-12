@@ -168,33 +168,12 @@ def admin_dashboard():
 
 @main.route('/admin/add_round', methods=['POST'])
 def add_round():
-    start_date_str = request.form.get('start_date')
-    end_date_str = request.form.get('end_date')
+    start_date = datetime.now() 
     
     try:
-        # Convert string to date objects
-        start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
-        end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
-
-        # Ensure the start date is today
-        current_date = datetime.now().date()
-        
-        if start_date != current_date:
-            flash('Start date must be the current date.', 'danger')
-            return redirect(url_for('main.admin_dashboard'))
-
-        # Convert end date string to date
-        end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
-
-
-            # Check if the new end date is before the start date
-        if end_date < current_date:
-                flash('End date cannot be before the start date.', 'danger')
-                return redirect(url_for('main.admin_dashboard'))
-
 
         # Create a new round
-        new_round = Round(start_date=start_date, end_date=end_date, is_active=True)
+        new_round = Round(start_date=start_date, is_active=True)
 
         # Add and commit the new round to the database
         db.session.add(new_round)
@@ -208,42 +187,31 @@ def add_round():
     return redirect(url_for('main.admin_dashboard'))
 
 
-@main.route('/admin/update_round/<int:round_id>', methods=['POST'])
-def update_round(round_id):
+@main.route('/admin/end_round/<int:round_id>', methods=['POST'])
+def end_round(round_id):
     try:
+        # Retrieve the round by ID
         round_to_update = Round.query.get(round_id)
-        if round_to_update:
-            # Get the new end date from the form data
-            new_end_date_str = request.form.get('end_date')
-            new_end_date = datetime.strptime(new_end_date_str, '%Y-%m-%d').date()  # Convert string to date
-
-            # Convert string to date
-            new_end_date = datetime.strptime(new_end_date_str, '%Y-%m-%d').date()
-            
-            # Check if the new end date is before the start date
-            if new_end_date < round_to_update.start_date:
-                flash('End date cannot be before the start date.', 'danger')
-                return redirect(url_for('main.admin_dashboard'))
-
-            
+        
+        # Check if the round exists and is currently active
+        if round_to_update and round_to_update.is_active:
+            # Set the round as inactive and update the end date
+            round_to_update.is_active = False
+            round_to_update.end_date = datetime.now()  # Update end_date to the current date/time
+            allocate_seats(round_id)
 
 
-            # Update the end date of the round
-            round_to_update.end_date = new_end_date
-            
-            # Check if the new end date is the same as the current date
-            if new_end_date == datetime.now().date():
-                round_to_update.is_active = False  # Set to inactive if the end date is today
-
+            # Commit the change to the database
             db.session.commit()
-            flash('Round updated successfully!', 'success')
+            
+            flash(f"Round {round_id} has ended and is now inactive.", "success")
         else:
-            flash('Round not found.', 'danger')
-    except ValueError as ve:
-        flash(f'Invalid date format: {ve}', 'danger')
+            flash("Round is either not active or does not exist.", "error")
     except Exception as e:
-        db.session.rollback()
-        flash(f'Error updating round: {e}', 'danger')
+        db.session.rollback()  # Roll back if there's an error
+        flash("An error occurred while trying to end the round.", "error")
+        print(e)  # Optional: for debugging purposes
+        
 
     return redirect(url_for('main.admin_dashboard'))
 
@@ -313,105 +281,50 @@ def add_major():
     return render_template('add_major.html', college=college)  # Pass the college object to the template
 
 
-# Route for managing services
-'''
-@main.route('/admin/services', methods=['GET', 'POST'])
-def services():
-    if request.method == 'POST':
-        # Handle adding a new service
-        if 'name' in request.form:  # Check if adding a service
-            name = request.form['name']
-            price = request.form['price']
-            time_required = request.form['time_required']
-            description = request.form['description']
-            new_service = Service(name=name, price=price, time_required=time_required, description=description)
-            db.session.add(new_service)
-            db.session.commit()
-            flash('Service added successfully!')
-            return redirect(url_for('main.services'))
-        
-        # Handle searching for services
-        search_query = request.form.get('search_query')
-        services = Service.query.filter(Service.name.contains(search_query)).all()
-        if search_query=='all':
-            services = Service.query.all()
-    else:
-        services = Service.query.all()
-    return render_template('services.html', services=services)
-
-# Route for handling service requests
-
-@main.route('/search', methods=['POST'])
-def search():
-    search_query = request.form.get('search_query')
-    search_query = search_query.lower()
-    professionals = (
-        db.session.query(College, User)
-        .join(User, User.id == College.id)  # Join with User
-        .filter(ServiceProfessional.name.ilike(f'%{search_query}%'))  # Case-insensitive search
-        .all()
-    )
-    return render_template('all_approved_professionals.html', professionals=professionals, title='Search Results')
-
-
-
-@main.route('/admin/service_requests', methods=['GET', 'POST'])
-def service_requests():
-    current_user_id = session.get('user_id')  
-    requests = ServiceRequest.query.filter_by(professional_id=current_user_id).all() 
-    return render_template('service_requests.html', requests=requests)  
-'''
-
 @main.route('/student/dashboard', methods=['GET', 'POST'])
 def student_dashboard():
     current_user_id = session.get('user_id')
-    student = Student.query.filter_by(id=current_user_id).first()  # Fetch the student record directly
+    student = Student.query.filter_by(id=current_user_id).first()
 
     # Fetch the current active round
     active_round = Round.query.filter_by(is_active=True).first()
-    if active_round:
-        print(f"Active Round ID: {active_round.round_id}")
-    else:
-        print("No active round found.")
-
 
     # Fetch all college-major pairs
     college_major_pairs = db.session.query(
-    Major.id.label('major_id'),
-    Major.name.label('major_name'),
-    College.id.label('college_id'),
-    College.name.label('college_name')
-).join(College).all()
-    
-    print(college_major_pairs)
-    
-     # Fetch saved seat preferences for the student
+        Major.id.label('major_id'),
+        Major.name.label('major_name'),
+        College.id.label('college_id'),
+        College.name.label('college_name')
+    ).join(College).all()
+
+    # Fetch saved seat preferences for the student
     saved_preferences = SeatPreference.query.filter_by(student_id=current_user_id).all()
 
-
+    # Fetch seat allotments for all rounds for the student
+    seat_allotments = StudentAllotment.query.filter_by(student_id=current_user_id).all()
 
     if request.method == 'POST':
         preference1_id = request.form.get('preference1')
         preference2_id = request.form.get('preference2')
 
-        # Retrieve the corresponding college and major for preference 1
+        # Retrieve preferences and create new SeatPreference entries
         preference1 = Major.query.get(preference1_id)
         preference2 = Major.query.get(preference2_id)
 
         if preference1 and preference2:
             new_preference1 = SeatPreference(
                 student_id=current_user_id,
-                college_id=preference1.college_id,  # Ensure to get the college_id from the Major model
+                college_id=preference1.college_id,
                 major_id=preference1.id,
                 preference_order=1,
-                round_id=active_round.round_id 
+                round_id=active_round.round_id
             )
             new_preference2 = SeatPreference(
                 student_id=current_user_id,
-                college_id=preference2.college_id,  # Ensure to get the college_id from the Major model
+                college_id=preference2.college_id,
                 major_id=preference2.id,
                 preference_order=2,
-                round_id=active_round.round_id 
+                round_id=active_round.round_id
             )
 
             db.session.add(new_preference1)
@@ -421,286 +334,82 @@ def student_dashboard():
             flash('Preferences saved successfully!', 'success')
             return redirect(url_for('main.student_dashboard'))
 
-    return render_template('student_dashboard.html', student=student,college_major_pairs=college_major_pairs,saved_preferences=saved_preferences,active_round=active_round)
+    return render_template(
+        'student_dashboard.html',
+        student=student,
+        college_major_pairs=college_major_pairs,
+        saved_preferences=saved_preferences,
+        active_round=active_round,
+        seat_allotments=seat_allotments
+    )
 
 @main.route('/view_colleges', methods=['GET'])
 def view_colleges():
     colleges = College.query.options(db.joinedload(College.majors)).all()  # Fetch all colleges with their majors
     return render_template('view_colleges.html', colleges=colleges)
 
-'''
-@main.route('/book_service/<int:professional_id>', methods=['POST'])
-def book_service(professional_id):
-    service_id = request.form.get('service_id')
-    customer_id = session.get('user_id')
-    print(service_id)
-    service_ids = Service.query.with_entities(Service.id).all()
-    service_id_list = [service_id[0] for service_id in service_ids]
-    print(service_id_list)
-    existing_request = ServiceRequest.query.filter_by(
-        customer_id=customer_id,
-        professional_id=professional_id
-    ).first()
-    if existing_request:
-        flash("You have already booked this professional. You cannot book again.")
-        return redirect(url_for('main.customer_dashboard'))  # Redirect to the relevant page
-    if service_id not in service_id_list:
-       flash('Please select a service before booking.', 'error')
-       return redirect(url_for('main.customer_dashboard'))
-    
-    new_request = ServiceRequest(professional_id=professional_id, customer_id=customer_id, service_id=service_id, service_status='Pending')
-    db.session.add(new_request)
+
+# Helper function to handle seat allocation logic
+def allocate_seats(round_id):
+    # Retrieve all students for the given round sorted by rank
+    students = Student.query.order_by(Student.rank).all()
+
+    for student in students:
+        allocated = False  # Track if the student gets a seat
+
+        # Go through each preference in order for this specific round
+        preferences = SeatPreference.query.filter_by(student_id=student.id, round_id=round_id).order_by(SeatPreference.preference_order).all()
+
+        for preference in preferences:
+            major = Major.query.filter_by(id=preference.major_id).first()
+
+            # Check if there's an available seat in this major
+            if major and major.alloted_seat_count < major.seat_count:
+                # Allocate seat to this student for this preference
+                major.alloted_seat_count += 1
+                db.session.add(major)
+
+                # Record the seat allocation in the StudentAllotment table
+                allocation = StudentAllotment(
+                    student_id=student.id,
+                    pref_id=preference.id,
+                    round_id=round_id,
+                    status='active'
+                )
+                db.session.add(allocation)
+
+                # Mark the student as allocated
+                allocated = True
+                break  # Stop further preferences once a seat is allocated
+
+    # Commit all changes to the database
     db.session.commit()
-    flash('Service booked successfully!')
-    return redirect(url_for('main.customer_dashboard'))
+    return "Seat allocation completed for round."
 
-@main.route('/delete_request/<int:request_id>', methods=['POST'])
-def delete_request(request_id):
-    current_user_id = session.get('user_id')
-    
-    request_to_delete = ServiceRequest.query.filter_by(customer_id=current_user_id, id=request_id, service_status='Pending').first()
-    if request_to_delete:
-        db.session.delete(request_to_delete)
-        db.session.commit()
-        flash('Request deleted successfully!')
-    else:
-        flash('No pending request found to delete.')
-    
-    return redirect(url_for('main.customer_dashboard'))
 
-@main.route('/requests', methods=['GET'])
-def requests():
-    current_user_id = session.get('user_id')  # Get the current user's ID from the session
-    requests = ServiceRequest.query.filter_by(customer_id=current_user_id).all()  # Fetch all requests for the current user
-    print(requests)
-    return render_template('requests.html', requests=requests)  # Render a new template with the requests
+@main.route('/update_choice/<int:allotment_id>', methods=['POST'])
+def update_choice(allotment_id):
+    choice = request.form.get('choice')
+    allotment = StudentAllotment.query.get_or_404(allotment_id)
 
-@main.route('/accept_request/<int:request_id>', methods=['POST'])
-def accept_request(request_id):
-    service_request = ServiceRequest.query.get_or_404(request_id)
-    service_request.service_status = 'accepted'
+    if choice == 'accept':
+        allotment.status = 'active'
+        allotment.student.round_furthering = False
+    elif choice == 'freeze_and_upgrade':
+        allotment.status = 'active'
+        allotment.student.round_furthering = True
+    elif choice == 'reject_and_upgrade':
+        allotment.status = 'inactive'
+        allotment.student.round_furthering = True
+    elif choice == 'withdraw':
+        allotment.status = 'inactive'
+        allotment.student.round_furthering = False
+
+    allotment.choice = choice
     db.session.commit()
-    flash('Request accepted successfully.')
-    return redirect(url_for('main.service_requests'))
-
-@main.route('/complete_request/<int:request_id>', methods=['POST'])
-def complete_request(request_id):
-    service_request = ServiceRequest.query.get_or_404(request_id)
-    service_request.service_status = 'complete'
-    db.session.commit()
-    flash('Request marked as complete.')
-    return redirect(url_for('main.service_requests'))
-
-@main.route('/delete_request/<int:request_id>', methods=['POST'])
-def delete(request_id):
-    service_request = ServiceRequest.query.get_or_404(request_id)
-    # Change status to rejected instead of deleting
-    service_request.service_status = 'rejected'
-    db.session.commit()
-    flash('Request has been rejected.')
-    return redirect(url_for('main.service_requests'))
+    flash('Your choice has been updated successfully!', 'success')
+    return redirect(url_for('main.student_dashboard'))
 
 
 
-@main.route('/customer/past_reviews')
-def past_reviews():
-    current_user= session.get('user_id')
-    reviews = Review.query.filter_by(customer_id=current_user).all()
-    return render_template('past_review.html', reviews=reviews)
 
-
-@main.route('/leave_review/<int:professional_id>', methods=['GET', 'POST'])
-def leave_review(professional_id):
-    customer_id = session.get('user_id')  # Get the customer ID from the session
-    if request.method == 'POST':
-        rating = request.form.get('rating')
-        comment = request.form.get('comment')
-
-        # Ensure all fields are filled
-        if not rating or not comment:
-            flash('Please provide both a rating and a comment.')
-            return redirect(url_for('main.leave_review', professional_id=professional_id))
-
-        # Create a new review in the database
-        new_review = Review(professional_id=professional_id, customer_id=customer_id, rating=rating, comments=comment, date_of_review=datetime.now())
-        db.session.add(new_review)
-        db.session.commit()
-
-        # Update the corresponding service request with the review_id
-        service_request = ServiceRequest.query.filter_by(customer_id=customer_id, professional_id=professional_id).first()
-
-        if service_request:
-            service_request.review_id = new_review.id
-            db.session.commit()
-
-        flash('Your review has been submitted!')
-        return redirect(url_for('main.customer_dashboard'))
-
-    # Render the review form if the method is GET
-    return render_template('leave_review.html', professional_id=professional_id)
-
-
-@main.route('/review/edit/<int:review_id>', methods=['GET', 'POST'])
-def edit_review(review_id):
-    review = Review.query.get_or_404(review_id)
-
-    if request.method == 'POST':
-        # Get form data from the POST request
-        new_rating = request.form.get('rating')
-        new_comments = request.form.get('comments')
-
-        # Update the review
-        review.rating = new_rating
-        review.comments = new_comments
-        db.session.commit()
-
-        flash('Your review has been updated!', 'success')
-        return redirect(url_for('main.past_reviews'))  # Redirect to the past reviews page
-
-    # If GET request, render the edit review form
-    return render_template('edit_review.html', review=review)
-
-
-@main.route('/request/delete/<int:request_id>', methods=['POST'])
-def delete_c_request(request_id):
-    # Fetch the customer request by id
-    customer_request = ServiceRequest.query.get_or_404(request_id)
-
-    if customer_request:
-        customer_request.service_status = 'Rejected'
-        db.session.commit()
-
-        flash('The request has been rejected', 'success')
-    else:
-        flash('Request not found.', 'danger')
-
-    return redirect(url_for('main.service_requests')) 
-
-@main.route('/delete_review/<int:review_id>', methods=['POST'])
-def delete_review(review_id):
-    # Fetch the review by its ID
-    review = Review.query.get_or_404(review_id)
-
-    # Find the related service request and remove the review_id from it
-    service_request = ServiceRequest.query.filter_by(review_id=review_id).first()
-    if service_request:
-        service_request.review_id = None  # Remove the reference to the review
-
-    # Delete the review from the database
-    db.session.delete(review)
-    db.session.commit()
-
-    flash('Review has been deleted successfully.')
-    return redirect(url_for('main.customer_dashboard'))
-
-
-@main.route('/admin/update_approval_status', methods=['POST'])
-def update_approval_status():
-    data = request.form  # Access form data from the POST request
-    request_id = data.get('request_id')
-    is_approved = data.get('is_approved') == 'approved'  # Convert the value to a boolean
-
-    # Find the professional request in the database by its ID
-    professional_request = ServiceProfessional.query.get(request_id)
-    
-    if not professional_request:
-        flash('Professional request not found.', 'danger')
-        return redirect(url_for('main.admin_dashboard'))
-
-    # Update the approval status
-    professional_request.is_approved = is_approved
-    db.session.commit()
-
-    flash('Approval status updated successfully.', 'success')
-    return redirect(url_for('main.admin_dashboard'))
-
-
-@main.route('/edit_service/<int:service_id>', methods=['GET', 'POST'])
-def edit_service(service_id):
-    service = Service.query.get(service_id)
-    
-    if not service:
-        flash('Service not found.', 'danger')
-        return redirect(url_for('main.services'))
-
-    if request.method == 'POST':
-        # Get updated values from the form
-        service.name = request.form['name']
-        service.price = request.form['price']
-        service.time_required = request.form['time_required']
-        service.description = request.form['description']
-
-        db.session.commit()
-        flash('Service updated successfully.', 'success')
-        return redirect(url_for('main.services'))
-
-    return render_template('edit_service.html', service=service)
-
-@main.route('/admin/delete_service/<int:service_id>', methods=['POST'])
-def delete_service(service_id):
-    # Find the service to delete
-    service_to_delete = Service.query.get_or_404(service_id)
-
-    # Get all professionals associated with this service
-    professionals = ServiceProfessional.query.filter_by(service_type=service_to_delete.name).all()
-
-    # Cancel all pending requests for this service
-    pending_requests = ServiceRequest.query.filter_by(service_id=service_id, service_status='Pending').all()
-
-    for request in pending_requests:
-        request.service_status = 'Canceled'  # Change the status to 'Canceled'
-        db.session.commit()
-
-    # Notify professionals
-    for professional in professionals:
-        # Here you could store messages in a notification system or use flash messages.
-        flash(f'The service "{service_to_delete.name}" no longer exists. Your pending requests for this service have been canceled.', 'warning')
-
-    # Delete the service from the database
-    db.session.delete(service_to_delete)
-    db.session.commit()
-
-    flash('Service deleted successfully!')
-    return redirect(url_for('main.services'))
-
-
-@main.route('/service/update/<int:service_id>', methods=['POST'])
-def update_service(service_id):
-    service = Service.query.get_or_404(service_id)
-    service.name = request.form['name']
-    service.price = request.form['price']
-    service.time_required = request.form['time_required']
-    service.description = request.form['description']
-
-    db.session.commit()
-    flash('Service updated successfully!', 'success')
-    return redirect(url_for('main.services'))
-'''
-@main.route('/customers')
-def all_customers():
-    customers = User.query.filter_by(role='STUDENT', is_active=True).all()
-    return render_template('all_customer.html', customers=customers)
-
-@main.route('/approved_professionals')
-def all_approved_professionals():
-    # Querying the approved professionals who are active in the users table
-    professionals = (
-        db.session.query(College, User)
-        .join(User, User.id == College.id)
-        .filter(College.is_approved == True, User.is_active == True)
-        .all()
-    )
-    print(professionals)
-    return render_template('all_approved_professionals.html', professionals=professionals, title='Approved Professionals')
-
-
-@main.route('/remove_user/<int:user_id>', methods=['POST'])
-def remove_user(user_id):
-    user = User.query.get(user_id)
-    if user:
-        user.is_active = False
-        db.session.commit()
-        flash('User has been removed successfully.')
-    else:
-        flash('User not found.')
-    return redirect(url_for('main.admin_dashboard'))

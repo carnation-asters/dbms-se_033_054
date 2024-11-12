@@ -77,7 +77,7 @@ class Round(db.Model):
     
     round_id = db.Column(db.Integer, primary_key=True)
     start_date = db.Column(db.Date, nullable=False)
-    end_date = db.Column(db.Date, nullable=False)
+    end_date = db.Column(db.Date, nullable=True)
     is_active = db.Column(db.Boolean, nullable=False, default=False)
 
     # Relationship to link Round with StudentAllotment
