@@ -1,0 +1,42 @@
+-- database: ../instance/household_services_2519.db
+
+SELECT name FROM sqlite_master WHERE type='trigger';
+
+
+drop TABLE student_allotments;
+drop table seat_preferences;
+drop table rounds;
+
+
+DROP TRIGGER IF EXISTS before_insert_round;
+
+CREATE TRIGGER before_insert_round
+BEFORE INSERT ON rounds
+FOR EACH ROW
+BEGIN
+    -- Update student_allotments: Set choice to 'withdraw' where choice is NULL
+    UPDATE student_allotments
+    SET choice = 'withdraw'
+    WHERE choice IS NULL;
+
+    -- Update students: Set round_furthering to FALSE where choice was NULL and has been updated to 'withdraw'
+    UPDATE students
+    SET round_furthering = FALSE
+    WHERE id IN (
+        SELECT student_id
+        FROM student_allotments
+        WHERE choice = 'withdraw' or choice is NULL
+          AND EXISTS (SELECT 1 FROM rounds WHERE round_id < NEW.round_id)
+    );
+
+    -- Decrement alloted_seat_count in majors for each affected major
+    UPDATE majors
+    SET alloted_seat_count = alloted_seat_count - 1
+    WHERE id IN (
+        SELECT major_id
+        FROM student_allotments
+        JOIN seat_preferences ON student_allotments.pref_id = seat_preferences.id
+        WHERE student_allotments.choice = 'withdraw' or choice is NULL
+          AND student_allotments.round_id = NEW.round_id-1
+    );
+END;

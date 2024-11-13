@@ -1,0 +1,32 @@
+-- database: ../instance/household_services_2519.db
+
+update students set round_furthering=1 where rank=1;
+drop table rounds;
+
+drop trigger if exists set_round_furthering_to_null_and_withdraw1;
+
+-- database: ../instance/household_services_2519.db
+
+CREATE TRIGGER set_round_furthering_to_null_and_withdraw1
+AFTER UPDATE ON rounds
+FOR EACH ROW
+WHEN OLD.end_date IS NULL AND NEW.end_date IS NOT NULL
+BEGIN
+    -- Ensure that the number of entries for the round is not equal to 2
+    -- and update students' round_furthering
+    UPDATE students 
+    SET round_furthering = FALSE
+    WHERE id NOT IN (
+    SELECT student_id
+    FROM seat_preferences
+    WHERE round_id = NEW.round_id
+    GROUP BY student_id
+    HAVING COUNT(*) = 2
+);
+
+    
+END;
+
+
+
+SELECT COUNT(*) FROM seat_preferences where round_id = 1 GROUP BY student_id ;
